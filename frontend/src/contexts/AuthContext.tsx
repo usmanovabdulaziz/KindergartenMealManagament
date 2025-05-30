@@ -8,19 +8,21 @@ interface AuthContextType {
   userRole: string | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string; }>;
   logout: () => void;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isAuthenticated, user, userRole, login, logout } = useApiService();
+  const { isAuthenticated, user, userRole, login, logout, refreshUserProfile } = useApiService();
 
   const value = {
     isAuthenticated,
     user,
     userRole,
     login,
-    logout
+    logout,
+    refreshUserProfile
   };
 
   return (

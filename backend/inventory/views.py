@@ -87,4 +87,7 @@ class DeliveryLogViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrManager]
 
     def perform_create(self, serializer):
-        serializer.save(received_by=self.request.user)
+        delivery_log = serializer.save(received_by=self.request.user)
+        product = delivery_log.product
+        product.total_weight += delivery_log.quantity_received
+        product.save(update_fields=['total_weight'])

@@ -11,3 +11,4 @@ export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
 export { Badge } from './badge';
 export { Progress } from './progress';
+export { Checkbox } from './checkbox';

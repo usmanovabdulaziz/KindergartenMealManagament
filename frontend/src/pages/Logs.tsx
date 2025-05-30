@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -26,7 +25,14 @@ const Logs = () => {
     const fetchLogs = async () => {
       try {
         const logsData = await api.getLogs();
-        setLogs(logsData);
+        // Support both paginated and non-paginated responses
+        let logsArray = [];
+        if (Array.isArray(logsData)) {
+          logsArray = logsData;
+        } else if (logsData && Array.isArray(logsData.results)) {
+          logsArray = logsData.results;
+        }
+        setLogs(logsArray);
       } catch (error) {
         console.error('Error fetching logs:', error);
         toast.error('Failed to load logs');
@@ -36,6 +42,7 @@ const Logs = () => {
     };
 
     fetchLogs();
+    // eslint-disable-next-line
   }, []);
 
   return (
@@ -63,19 +70,19 @@ const Logs = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
+                {(Array.isArray(logs) ? logs : []).map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
                       {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
                     </TableCell>
-                    <TableCell>{log.user.username}</TableCell>
+                    <TableCell>{log.user?.username || '—'}</TableCell>
                     <TableCell>{log.action}</TableCell>
                     <TableCell className="max-w-md truncate">
                       {log.details}
                     </TableCell>
                   </TableRow>
                 ))}
-                {logs.length === 0 && (
+                {(Array.isArray(logs) && logs.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-8">
                       No logs found

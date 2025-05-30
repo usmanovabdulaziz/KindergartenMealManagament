@@ -1,14 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
-import { 
+import {
   Button,
   Card,
   CardContent,
@@ -30,17 +29,24 @@ import {
 } from "@/components/ui";
 import { PlusCircle, PackageOpen } from "lucide-react";
 import { DeliveryLog, Product, Supplier, User } from '@/types';
-import API from '@/services/api';
+import { useApiService } from "@/hooks/useApiService";
 import { format } from 'date-fns';
 import { toast } from "@/components/ui/sonner";
 
+function extractArray<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 const Deliveries = () => {
+  const { api } = useApiService();
   const [deliveryLogs, setDeliveryLogs] = useState<DeliveryLog[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     productId: 0,
@@ -49,30 +55,29 @@ const Deliveries = () => {
     deliveryDate: format(new Date(), 'yyyy-MM-dd'),
     notes: ''
   });
-  
+
   useEffect(() => {
     const loadData = async () => {
       try {
         const [logsData, productsData, suppliersData, userData] = await Promise.all([
-          API.getDeliveryLogs(),
-          API.getProducts(),
-          API.getSuppliers(),
-          API.getCurrentUser()
+          api.getDeliveryLogs(),
+          api.getProducts(),
+          api.getSuppliers(),
+          api.getCurrentUser()
         ]);
-        
-        setDeliveryLogs(logsData);
-        setProducts(productsData);
-        setSuppliers(suppliersData);
+        setProducts(extractArray<Product>(productsData.products || productsData));
+        setSuppliers(extractArray<Supplier>(suppliersData));
+        setDeliveryLogs(extractArray<DeliveryLog>(logsData));
         setCurrentUser(userData);
       } catch (error) {
         console.error('Error loading data:', error);
         toast.error('Failed to load delivery data');
       }
     };
-    
     loadData();
+    // eslint-disable-next-line
   }, []);
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -80,37 +85,32 @@ const Deliveries = () => {
       [name]: name === 'notes' || name === 'deliveryDate' ? value : Number(value),
     });
   };
-  
+
   const handleAddDelivery = async () => {
     try {
       if (!currentUser) throw new Error('User not found');
-      
-      const product = products.find(p => p.id === formData.productId);
-      const supplier = suppliers.find(s => s.id === formData.supplierId);
-      
-      if (!product) throw new Error('Please select a valid product');
-      if (!supplier) throw new Error('Please select a valid supplier');
+      if (!formData.productId) throw new Error('Please select a valid product');
+      if (!formData.supplierId) throw new Error('Please select a valid supplier');
       if (formData.quantityReceived <= 0) throw new Error('Quantity must be greater than 0');
-      
-      await API.addDelivery({
-        product,
-        supplier,
-        quantityReceived: formData.quantityReceived,
-        deliveryDate: formData.deliveryDate,
-        receivedAt: new Date().toISOString(),
-        receivedBy: currentUser,
+
+      await api.addDelivery({
+        product_id: formData.productId,      // Correct backend field name
+        supplier_id: formData.supplierId,    // Correct backend field name
+        quantity_received: formData.quantityReceived,
+        delivery_date: formData.deliveryDate,
         notes: formData.notes
       });
-      
+
       // Refresh data
-      const [logsData, productsData] = await Promise.all([
-        API.getDeliveryLogs(),
-        API.getProducts()
+      const [logsData, productsData, suppliersData] = await Promise.all([
+        api.getDeliveryLogs(),
+        api.getProducts(),
+        api.getSuppliers()
       ]);
-      
-      setDeliveryLogs(logsData);
-      setProducts(productsData);
-      
+      setProducts(extractArray<Product>(productsData.products || productsData));
+      setSuppliers(extractArray<Supplier>(suppliersData));
+      setDeliveryLogs(extractArray<DeliveryLog>(logsData));
+
       // Reset form and close dialog
       setFormData({
         productId: 0,
@@ -126,7 +126,7 @@ const Deliveries = () => {
       toast.error(error.message || 'Failed to add delivery');
     }
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -138,17 +138,15 @@ const Deliveries = () => {
               Add Delivery
             </Button>
           </DialogTrigger>
-          
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Delivery</DialogTitle>
             </DialogHeader>
-            
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="product">Product</Label>
-                <Select 
-                  onValueChange={(value) => setFormData({...formData, productId: Number(value)})}
+                <Select
+                  onValueChange={(value) => setFormData({ ...formData, productId: Number(value) })}
                   value={formData.productId ? formData.productId.toString() : ''}
                 >
                   <SelectTrigger>
@@ -163,11 +161,10 @@ const Deliveries = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
               <div className="grid gap-2">
                 <Label htmlFor="supplier">Supplier</Label>
-                <Select 
-                  onValueChange={(value) => setFormData({...formData, supplierId: Number(value)})}
+                <Select
+                  onValueChange={(value) => setFormData({ ...formData, supplierId: Number(value) })}
                   value={formData.supplierId ? formData.supplierId.toString() : ''}
                 >
                   <SelectTrigger>
@@ -182,41 +179,37 @@ const Deliveries = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
               <div className="grid gap-2">
                 <Label htmlFor="quantityReceived">Quantity Received</Label>
-                <Input 
-                  id="quantityReceived" 
-                  name="quantityReceived" 
-                  type="number" 
+                <Input
+                  id="quantityReceived"
+                  name="quantityReceived"
+                  type="number"
                   min="0"
                   value={formData.quantityReceived || ''}
                   onChange={handleInputChange}
                 />
               </div>
-              
               <div className="grid gap-2">
                 <Label htmlFor="deliveryDate">Delivery Date</Label>
-                <Input 
-                  id="deliveryDate" 
-                  name="deliveryDate" 
+                <Input
+                  id="deliveryDate"
+                  name="deliveryDate"
                   type="date"
                   value={formData.deliveryDate}
                   onChange={handleInputChange}
                 />
               </div>
-              
               <div className="grid gap-2">
                 <Label htmlFor="notes">Notes</Label>
-                <Input 
-                  id="notes" 
-                  name="notes" 
+                <Input
+                  id="notes"
+                  name="notes"
                   value={formData.notes || ''}
                   onChange={handleInputChange}
                 />
               </div>
             </div>
-            
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
@@ -228,7 +221,6 @@ const Deliveries = () => {
           </DialogContent>
         </Dialog>
       </div>
-      
       <Card>
         <CardHeader>
           <CardTitle>Recent Deliveries</CardTitle>
@@ -249,13 +241,24 @@ const Deliveries = () => {
                 {deliveryLogs.length > 0 ? (
                   deliveryLogs.map((log) => (
                     <TableRow key={log.id}>
-                      <TableCell>{format(new Date(log.deliveryDate), 'MMM d, yyyy')}</TableCell>
-                      <TableCell className="font-medium">{log.product.name}</TableCell>
                       <TableCell>
-                        {log.quantityReceived} {log.product.unit.abbreviation}
+                        {format(
+                          new Date(log.delivery_date ?? log.deliveryDate),
+                          'MMM d, yyyy'
+                        )}
                       </TableCell>
-                      <TableCell>{log.supplier.name}</TableCell>
-                      <TableCell>{log.receivedBy.username}</TableCell>
+                      <TableCell className="font-medium">
+                        {log.product?.name ?? ""}
+                      </TableCell>
+                      <TableCell>
+                        {(log.quantity_received ?? log.quantityReceived) + " " + (log.product?.unit?.abbreviation ?? "")}
+                      </TableCell>
+                      <TableCell>
+                        {log.supplier?.name ?? ""}
+                      </TableCell>
+                      <TableCell>
+                        {(log.received_by?.username ?? log.receivedBy?.username ?? "")}
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (

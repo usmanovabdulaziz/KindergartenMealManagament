@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -10,7 +9,10 @@ import {
   User,
   Settings,
   FileText,
-  LogOut
+  LogOut,
+  Folder,
+  Plus,
+  Building2 // You can use any suitable icon for Suppliers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,19 +40,23 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: Home, roles: ['admin', 'cook', 'manager'] },
+    { name: 'Dashboard', href: '/', icon: Home, roles: ['admin', 'manager'] },
     { name: 'Ingredients', href: '/ingredients', icon: Apple, roles: ['admin', 'cook', 'manager'] },
     { name: 'Meals', href: '/meals', icon: UtensilsCrossed, roles: ['admin', 'cook', 'manager'] },
     { name: 'Deliveries', href: '/deliveries', icon: Truck, roles: ['admin', 'manager'] },
     { name: 'Reports', href: '/reports', icon: BarChartBig, roles: ['admin', 'manager'] },
+    { name: 'Product Categories', href: '/product-categories', icon: Folder, roles: ['admin', 'manager', 'cook'] },
+    { name: 'Add Unit', href: '/units/add', icon: Plus, roles: ['admin', 'manager', 'cook'] },
+    // Suppliers link for admin and manager only
+    { name: 'Suppliers', href: '/suppliers', icon: Building2, roles: ['admin', 'manager'] },
     { name: 'Users', href: '/users', icon: User, roles: ['admin'] },
     { name: 'Logs', href: '/logs', icon: FileText, roles: ['admin'] },
-    { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin', 'manager'] },
+    { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin', 'manager', 'cook'] },
   ];
 
   // Filter navigation items based on user role
   const filteredNavigation = navigation.filter(item =>
-    !item.roles || (userRole && item.roles.includes(userRole))
+    !item.roles || (userRole && item.roles.includes(userRole.toLowerCase()))
   );
 
   return (

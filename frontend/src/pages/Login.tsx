@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button, Input, Label } from '@/components/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,13 +10,18 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, userRole } = useAuth();
   const navigate = useNavigate();
 
-  // If already authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    return <Navigate to="/" />;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (userRole === 'cook') {
+        navigate('/meals', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [isAuthenticated, userRole, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +32,7 @@ const Login = () => {
 
       if (result.success) {
         toast.success('Login successful');
-        navigate('/');
+        // Navigation is handled by useEffect above!
       } else {
         toast.error(result.error || 'Login failed');
       }

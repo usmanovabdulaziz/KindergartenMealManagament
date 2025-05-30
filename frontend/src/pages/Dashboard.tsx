@@ -1,68 +1,86 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  AlertTriangle, 
-  ShoppingCart, 
-  UtensilsCrossed, 
+import {
+  AlertTriangle,
+  ShoppingCart,
+  UtensilsCrossed,
   TrendingDown,
   Activity
 } from "lucide-react";
-import API from '@/services/api';
-import { Product, Meal } from '@/types';
+import { useApiService } from '@/hooks/useApiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-interface PossiblePortion {
-  meal: Meal;
-  possiblePortions: number;
-}
-
-interface LowStockItem {
-  product: Product;
-  percentage: number;
+// Utility to format date/time ago
+function timeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = (now.getTime() - date.getTime()) / 1000;
+  if (diff < 60) return `${Math.floor(diff)} seconds ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
 }
 
 const Dashboard = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [meals, setMeals] = useState<Meal[]>([]);
-  const [possiblePortions, setPossiblePortions] = useState<PossiblePortion[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  
+  const { api, apiBaseUrl } = useApiService();
+
+  // Unified dashboard state
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Fetch dashboard data from backend
+  const fetchDashboard = async () => {
+    try {
+      const data = await api.getDashboardSummary();
+      setDashboardData(data);
+    } catch (e) {
+      console.error('Error loading dashboard:', e);
+    }
+  };
+
   useEffect(() => {
-    // Load data
-    const loadData = async () => {
-      const [productsData, mealsData, portionsData] = await Promise.all([
-        API.getProducts(),
-        API.getMeals(),
-        API.getPossiblePortions()
-      ]);
-      
-      setProducts(productsData);
-      setMeals(mealsData);
-      setPossiblePortions(portionsData);
-      
-      // Calculate low stock items
-      const lowStock = productsData
-        .filter(product => product.threshold && product.totalWeight < product.threshold)
-        .map(product => ({
-          product,
-          percentage: product.threshold ? (product.totalWeight / product.threshold) * 100 : 0
-        }))
-        .sort((a, b) => a.percentage - b.percentage)
-        .slice(0, 5);
-      
-      setLowStockItems(lowStock);
+    fetchDashboard();
+
+    // Setup WebSocket for dashboard updates (secure if needed)
+    const wsProtocol = apiBaseUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsUrl = `${wsProtocol}://${apiBaseUrl.replace(/^https?:\/\//, '')}/ws/dashboard/`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      // console.log('Dashboard WebSocket connected');
     };
-    
-    loadData();
-  }, []);
-  
-  // Format chart data
-  const portionsChartData = possiblePortions.map(item => ({
-    name: item.meal.name,
-    portions: item.possiblePortions
-  }));
-  
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'dashboard_update') {
+        fetchDashboard();
+      }
+    };
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+    ws.onclose = () => {
+      // Optionally: try to reconnect after some time
+    };
+
+    return () => {
+      ws.close();
+    };
+    // eslint-disable-next-line
+  }, [apiBaseUrl]);
+
+  // Loading state
+  if (!dashboardData) return <div>Loading...</div>;
+
+  // Data mapping from backend
+  const ingredientCount = dashboardData.ingredient_count || 0;
+  const activeMeals = dashboardData.active_meals || 0;
+  const lowStockCount = dashboardData.low_stock_count || 0;
+  const mealsServedToday = dashboardData.meals_served_today || 0;
+  const availablePortions = dashboardData.available_portions || [];
+  const lowStockIngredients = dashboardData.low_stock_ingredients || [];
+  const recentActivities = dashboardData.recent_activities || [];
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -73,45 +91,42 @@ const Dashboard = () => {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{products.length}</div>
+            <div className="text-2xl font-bold">{ingredientCount}</div>
             <p className="text-xs text-muted-foreground">items in inventory</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Available Meals</CardTitle>
             <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{meals.filter(m => m.isActive).length}</div>
+            <div className="text-2xl font-bold">{activeMeals}</div>
             <p className="text-xs text-muted-foreground">active recipes</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{lowStockItems.length}</div>
+            <div className="text-2xl font-bold">{lowStockCount}</div>
             <p className="text-xs text-muted-foreground">items below threshold</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Activity</CardTitle>
+            <CardTitle className="text-sm font-medium">Meals Served Today</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{mealsServedToday}</div>
             <p className="text-xs text-muted-foreground">meals served today</p>
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="col-span-1">
@@ -121,7 +136,7 @@ const Dashboard = () => {
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={portionsChartData}
+                data={availablePortions.map((item: any) => ({ name: item.meal, portions: item.portions }))}
                 margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
@@ -133,32 +148,34 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        
         <Card className="col-span-1">
           <CardHeader>
             <CardTitle>Low Stock Ingredients</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {lowStockItems.length > 0 ? (
-                lowStockItems.map((item) => (
-                  <div key={item.product.id} className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">{item.product.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {item.product.totalWeight} / {item.product.threshold} {item.product.unit.abbreviation}
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-primary/20 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${item.percentage < 30 ? 'bg-destructive' : 'bg-primary'}`} 
-                          style={{ width: `${Math.min(100, item.percentage)}%` }}
-                        />
+              {lowStockIngredients.length > 0 ? (
+                lowStockIngredients.map((item: any) => {
+                  const percent = item.threshold ? Math.round((item.total_weight / item.threshold) * 100) : 0;
+                  return (
+                    <div key={item.id} className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">{item.name}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {item.total_weight} / {item.threshold} {item.unit}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-primary/20 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${percent < 30 ? 'bg-destructive' : 'bg-primary'}`}
+                            style={{ width: `${Math.min(100, percent)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-6">
                   <TrendingDown className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
@@ -169,7 +186,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Recent Activity */}
       <Card>
         <CardHeader>
@@ -177,35 +194,19 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-primary/10 p-2 rounded-full">
-                <UtensilsCrossed className="h-4 w-4 text-primary" />
+            {recentActivities.map((item: any, idx: number) => (
+              <div className="flex items-center gap-4" key={idx}>
+                <div className="bg-primary/10 p-2 rounded-full">
+                  <UtensilsCrossed className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{item.meal} served</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.portion_count} portions • {timeAgo(item.served_at)} • {item.served_by}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">Mashed Potatoes served</p>
-                <p className="text-xs text-muted-foreground">20 portions • 30 minutes ago • Cook John</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="bg-secondary/10 p-2 rounded-full">
-                <ShoppingCart className="h-4 w-4 text-secondary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">New delivery received</p>
-                <p className="text-xs text-muted-foreground">10kg Potatoes • 2 hours ago • Manager Alice</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="bg-accent/10 p-2 rounded-full">
-                <UtensilsCrossed className="h-4 w-4 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Chicken Rice served</p>
-                <p className="text-xs text-muted-foreground">25 portions • 3 hours ago • Cook John</p>
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
