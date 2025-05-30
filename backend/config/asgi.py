@@ -1,18 +1,34 @@
 import os
-import django
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-
-from inventory.routing import websocket_urlpatterns
-from meals.routing import websocket_urlpatterns as meals_websocket_urlpatterns
 from django.core.asgi import get_asgi_application
 
+# Avval Django sozlamalarini o'rnatish
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django_application = get_asgi_application()
+
+# Keyin Channels komponentlarini import qilish
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from channels.security.websocket import AllowedHostsOriginValidator
+
+
+# Django ilovalari yuklanganidan keyin routinglarni import qilish
+def get_websocket_application():
+    import meals.routing
+    import inventory.routing
+    import reports.routing
+
+    return AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            URLRouter(
+                meals.routing.websocket_urlpatterns +
+                inventory.routing.websocket_urlpatterns +
+                reports.routing.websocket_urlpatterns
+            )
+        )
+    )
+
+
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(
-        URLRouter(websocket_urlpatterns + meals_websocket_urlpatterns)
-    ),
+    "http": django_application,
+    "websocket": get_websocket_application(),
 })

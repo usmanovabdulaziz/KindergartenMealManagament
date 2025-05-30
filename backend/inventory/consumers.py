@@ -7,7 +7,8 @@ class InventoryConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # Tokenni olish
         query_string = self.scope['query_string'].decode()
-        token = dict(q.split("=") for q in query_string.split("&")).get("token", None)
+        params = dict(q.split("=", 1) for q in query_string.split("&") if "=" in q)
+        token = params.get("token", None)
 
         if token:
             try:

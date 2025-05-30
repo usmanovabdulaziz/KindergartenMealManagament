@@ -6,6 +6,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 # Load .env file
 load_dotenv()
@@ -46,8 +47,9 @@ INSTALLED_APPS = [
     'allergens',
     'inventory',
     'meals',
-    'operations',
+    'logfiles',
     'reports',
+    'operations',
 ]
 
 MIDDLEWARE = [
@@ -84,18 +86,18 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 # Database: PostgreSQL
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
     # 'default': {
-    #     'ENGINE': 'psycopg',  # psycopg[binary] ishlatilmoqda
-    #     'NAME': os.getenv('DB_NAME', default='kindergarten_db'),
-    #     'USER': os.getenv('DB_USER', default='postgres'),
-    #     'PASSWORD': os.getenv('DB_PASSWORD', default='your_password'),
-    #     'HOST': os.getenv('DB_HOST', default='localhost'),
-    #     'PORT': os.getenv('DB_PORT', default='5432'),
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
     # }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', default='kindergarten'),
+        'USER': os.getenv('DB_USER', default='postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', default='your_password'),
+        'HOST': os.getenv('DB_HOST', default='localhost'),
+        'PORT': os.getenv('DB_PORT', default='5432'),
+    }
 }
 
 # Custom User model
@@ -184,6 +186,13 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tashkent'
 CELERY_RESULT_EXTENDED = True
+
+CELERY_BEAT_SCHEDULE = {
+    'generate-monthly-reports': {
+        'task': 'reports.tasks.generate_monthly_reports',
+        'schedule': crontab(minute=0, hour=0, day_of_month=1),  # Run on the 1st of each month at midnight
+    },
+}
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'

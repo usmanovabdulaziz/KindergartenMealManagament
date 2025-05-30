@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from inventory.models import Product
+from inventory.models import Product, ProductCategory
 from users.models import User
 from django.core.exceptions import ValidationError
 
@@ -20,11 +20,11 @@ class MealCategory(models.Model):
 
 class Meal(models.Model):
     name = models.CharField(max_length=100)
-    category = models.ForeignKey(MealCategory, on_delete=models.RESTRICT)
+    category = models.ForeignKey(ProductCategory, on_delete=models.RESTRICT)  # <-- Now uses ProductCategory
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='meals_created')
     created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)  # Avtomatik yangilanish
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'Meal'

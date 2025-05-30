@@ -1,12 +1,12 @@
 from django.contrib import admin
 from .models import MealCategory, Meal, MealIngredient
 
-@admin.register(MealCategory)
-class MealCategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'created_at', 'updated_at')
-    list_filter = ('name',)
-    search_fields = ('name',)
-    readonly_fields = ('created_at', 'updated_at')
+# @admin.register(MealCategory)
+# class MealCategoryAdmin(admin.ModelAdmin):
+#     list_display = ('id', 'name', 'created_at', 'updated_at')
+#     list_filter = ('name',)
+#     search_fields = ('name',)
+#     readonly_fields = ('created_at', 'updated_at')
 
 @admin.register(Meal)
 class MealAdmin(admin.ModelAdmin):

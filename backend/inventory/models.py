@@ -28,10 +28,19 @@ class Supplier(models.Model):
     def __str__(self):
         return self.name
 
+class ProductCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 class Product(models.Model):
     name = models.CharField(max_length=100)
     total_weight = models.IntegerField(default=0)  # Quantity in unit_type
     unit = models.ForeignKey(Unit, on_delete=models.RESTRICT)
+    category = models.ForeignKey(ProductCategory, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='products')
     threshold = models.IntegerField(null=True, blank=True)  # Low stock threshold
     delivery_date = models.DateTimeField(default=timezone.now, null=True, blank=True)
     is_active = models.BooleanField(default=True)

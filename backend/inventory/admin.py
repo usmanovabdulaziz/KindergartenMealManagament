@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Unit, Supplier, Product, DeliveryLog
+from .models import Unit, Supplier, Product, DeliveryLog, ProductCategory
 
 @admin.register(Unit)
 class UnitAdmin(admin.ModelAdmin):
@@ -28,3 +28,5 @@ class DeliveryLogAdmin(admin.ModelAdmin):
     list_filter = ('delivery_date', 'received_by', 'supplier')
     search_fields = ('product__name', 'supplier__name', 'notes')
     readonly_fields = ('received_at',)
+
+admin.site.register(ProductCategory)

@@ -4,15 +4,15 @@ from rest_framework.decorators import action
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from .models import Unit, Supplier, Product, DeliveryLog, ProductCategory
+from .serializers import UnitSerializer, SupplierSerializer, ProductSerializer, DeliveryLogSerializer, ProductCategorySerializer
+from users.permissions import IsAdminOrManager, IsAdminOrManagerOrCook
 
-from .models import Unit, Supplier, Product, DeliveryLog
-from .serializers import UnitSerializer, SupplierSerializer, ProductSerializer, DeliveryLogSerializer
-from users.permissions import IsAdminOrManager
 
 class UnitViewSet(viewsets.ModelViewSet):
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -33,10 +33,16 @@ class SupplierViewSet(viewsets.ModelViewSet):
         serializer.save(updated_at=timezone.now())
 
 
+class ProductCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ProductCategory.objects.all()
+    serializer_class = ProductCategorySerializer
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

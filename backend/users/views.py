@@ -54,7 +54,7 @@ class UserLoginView(APIView):
                     {
                         "access_token": str(refresh.access_token),
                         "refresh_token": str(refresh),
-                        "role": user.role.name if user.role else "user",
+                        "role": user.role.name.lower() if user.role else "user",  # <-- LOWERCASE!
                         "email": user.email or "",
                         "username": user.username,
                     },
@@ -67,26 +67,12 @@ class UserLoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PasswordResetView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        username = request.data.get("username")
         new_password = request.data.get("new_password")
         confirm_password = request.data.get("confirm_password")
-
-        if not username:
-            return Response(
-                {"error": "Username kiritilishi shart."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Ushbu username ro‘yxatdan o‘tmagan. Iltimos, to‘g‘ri username kiriting."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        user = request.user
 
         if not new_password or not confirm_password:
             return Response(
@@ -159,7 +145,7 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save(updated_at=timezone.now())
 
     def create(self, request, *args, **kwargs):
-        if not request.user.is_authenticated or not request.user.role or request.user.role.name != 'Admin':
+        if not request.user.is_authenticated or not request.user.role or request.user.role.name != 'admin':
             return Response(
                 {"error": "Faqat Admin foydalanuvchilar yangi user qo‘shishi mumkin."},
                 status=status.HTTP_403_FORBIDDEN
@@ -175,7 +161,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated or not request.user.role or request.user.role.name != 'Admin':
+        if not request.user.is_authenticated or not request.user.role or request.user.role.name != 'admin':
             return Response(
                 {"error": "Faqat Admin foydalanuvchilar foydalanuvchi ma'lumotlarini o‘zgartirishi mumkin."},
                 status=status.HTTP_403_FORBIDDEN
@@ -189,3 +175,13 @@ class UserViewSet(viewsets.ModelViewSet):
             print("Validation errors:", serializer.errors)  # Validatsiya xatolarni log qilish
         self.perform_update(serializer)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not request.user.role or request.user.role.name != 'admin':
+            return Response(
+                {"error": "Faqat Admin foydalanuvchilar foydalanuvchini o'chirishi mumkin."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)

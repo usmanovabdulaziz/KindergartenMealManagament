@@ -25,8 +25,9 @@ urlpatterns = [
     path('inventory/', include('inventory.urls')),
     path('meals/', include('meals.urls')),
     path('allergens/', include('allergens.urls')),
-    path('operations/', include('operations.urls')),
+    path('logs/', include('logfiles.urls')),
     path('reports/', include('reports.urls')),
+    path('operations/', include('operations.urls')),
 ]
 
 if settings.DEBUG:

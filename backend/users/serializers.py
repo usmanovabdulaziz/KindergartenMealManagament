@@ -1,4 +1,3 @@
-# serializers.py
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -58,6 +57,9 @@ class UserSerializer(serializers.ModelSerializer):
             'username': {'required': False},
             'email': {'required': False},
         }
+
+    def get_role(self, obj):
+        return obj.role.name.lower() if obj.role else None
 
     def create(self, validated_data):
         role_id = validated_data.pop('role_id')

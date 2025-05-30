@@ -8,12 +8,12 @@ from asgiref.sync import async_to_sync
 from rest_framework.permissions import IsAuthenticated
 from .models import MealCategory, Meal, MealIngredient, MealServing
 from .serializers import MealCategorySerializer, MealSerializer, MealIngredientSerializer, MealServingSerializer
-from users.permissions import IsAdminOrManager, IsCook
+from users.permissions import IsAdminOrManager, IsCook, IsAdminOnly, IsAdminOrManagerOrCook
 
 class MealCategoryViewSet(viewsets.ModelViewSet):
     queryset = MealCategory.objects.all()
     serializer_class = MealCategorySerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager, IsCook]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -24,7 +24,7 @@ class MealCategoryViewSet(viewsets.ModelViewSet):
 class MealViewSet(viewsets.ModelViewSet):
     queryset = Meal.objects.all()
     serializer_class = MealSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager, IsCook]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -74,7 +74,7 @@ class MealViewSet(viewsets.ModelViewSet):
 class MealIngredientViewSet(viewsets.ModelViewSet):
     queryset = MealIngredient.objects.all()
     serializer_class = MealIngredientSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager, IsCook]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -85,7 +85,7 @@ class MealIngredientViewSet(viewsets.ModelViewSet):
 class MealServingViewSet(viewsets.ModelViewSet):
     queryset = MealServing.objects.all()
     serializer_class = MealServingSerializer
-    permission_classes = [IsAuthenticated, IsCook]
+    permission_classes = [IsAuthenticated, IsAdminOrManagerOrCook]
 
     def perform_create(self, serializer):
         meal = serializer.validated_data['meal']
@@ -119,7 +119,7 @@ class MealServingViewSet(viewsets.ModelViewSet):
         # Saqlash va WebSocket orqali yangilash
         serializer.save(served_by=self.request.user)
         self.notify_portion_update(meal.id)
-        self.generate_monthly_report(meal, portions)
+        # self.generate_monthly_report(meal, portions)  # <-- COMMENTED OUT, now safe!
 
     def notify_portion_update(self, meal_id):
         channel_layer = get_channel_layer()
